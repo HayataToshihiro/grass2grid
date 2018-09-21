@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(grass2grid)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -11,7 +11,12 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  cv_bridge
+  image_transport
 )
+find_package(OpenCV REQUIRED)
+
+include_directories( ${OpenCV_INCLUDE_DIRS} )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -148,6 +153,7 @@ add_executable(grass2grid src/grass2grid.cpp)
 ## Specify libraries to link a library or executable target against
 target_link_libraries(grass2grid
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
 )
 
 #############
