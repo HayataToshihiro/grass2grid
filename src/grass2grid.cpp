@@ -57,8 +57,10 @@ void seg_callback(const sensor_msgs::ImageConstPtr& msg)
     }
     for(int y=0;y<pixel_num_y;y++){
         for(int x=0;x<pixel_num_x;x++){
-            if( (pixel[y][x].seg[0]==0) && (pixel[y][x].seg[1]==0) && ((pixel[y][x].seg[2]==0) || pixel[y][x].seg[2]==128)) pixel[y][x].seg_ok=true;
-            else pixel[y][x].seg_ok=false;
+            //if( (pixel[y][x].seg[0]==0) && (pixel[y][x].seg[1]==0) && ((pixel[y][x].seg[2]==0) || pixel[y][x].seg[2]==128)) pixel[y][x].seg_ok=true;
+            //else pixel[y][x].seg_ok=false;
+            if( (pixel[y][x].seg[0]==0) && (pixel[y][x].seg[1]==0) && ((pixel[y][x].seg[2]==64) || pixel[y][x].seg[2]==192)) pixel[y][x].seg_ok=false;
+            else pixel[y][x].seg_ok=true;
         }
     }
 
@@ -116,8 +118,8 @@ void store_angle(float angle_x,float angle_y)
             pixel[y][x].rad_y = deg2rad(dy*y - init_y);
         }
     }
-    printf("rad[0][0] = (%.2f, %.2f)\n",pixel[0][0].rad_x,pixel[0][0].rad_y);
-    printf("rad[287][512] = (%.2f, %.2f)\n",pixel[287][512].rad_x,pixel[287][512].rad_y);
+    //printf("rad[0][0] = (%.2f, %.2f)\n",pixel[0][0].rad_x,pixel[0][0].rad_y);
+    //printf("rad[287][512] = (%.2f, %.2f)\n",pixel[287][512].rad_x,pixel[287][512].rad_y);
 }
 
 void init_grid(void)
@@ -144,18 +146,14 @@ void store_mapdata(void)
 void calc_object(void)
 {
     
-    for(int y=0;y<pixel_num_y;y++){
+    for(int y=pixel_num_y/2;y<pixel_num_y;y++){
         for(int x=0;x<pixel_num_x;x++){
             if(!std::isnan(pixel[y][x].depth) && pixel[y][x].depth <= 30.0){
                 int ob_x = (pixel[y][x].depth*cos(pixel[y][x].rad_y)*sin(pixel[y][x].rad_x) / map.info.resolution);
                 int ob_y = (pixel[y][x].depth*cos(pixel[y][x].rad_y)*cos(pixel[y][x].rad_x) / map.info.resolution);
-                printf("before %d,%d\n",ob_x,ob_y);
                 if(ob_y<=map.info.width/2.0){
-                            printf("after1 %d,%d\n",ob_x,ob_y);
                     if(map.info.width/2.0>=-ob_x){
-                            printf("after2 %d,%d\n",ob_x,ob_y);
                         if(ob_x<=map.info.width/2.0){
-                            printf("after3 %d,%d\n",ob_x,ob_y);
                             if(!pixel[y][x].seg_ok){
                                 grid[(int)map.info.height/2 - ob_y][(int)map.info.width/2 + ob_x] = 100;
                             }else{
@@ -167,7 +165,6 @@ void calc_object(void)
             }
         }
     }
-    printf("-\n");
 }
 
 int main(int argc, char** argv)
