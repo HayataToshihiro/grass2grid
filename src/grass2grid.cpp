@@ -37,11 +37,11 @@ void seg_callback(const sensor_msgs::ImageConstPtr& msg)
     image_s = cv_bridge::toCvCopy(seg_img, sensor_msgs::image_encodings::BGR8)->image;
     //resize(image_s,image_s,cv::Size(),320/pixel_num_x.,180/pixel_num_y.);
     
-    cv::imshow("image_s",image_s);
-    if(!im_s_s){
-        cv::moveWindow("image_s",60,40);
-        im_s_s = true;
-    }
+    //cv::imshow("image_s",image_s);
+    //if(!im_s_s){
+    //    cv::moveWindow("image_s",60,40);
+    //    im_s_s = true;
+    //}
 
     //printf("image_s[160,160][B,G,R] = [%d,%d,%d]\n"
     //         ,image_s.at<cv::Vec3b>(160,160)[0],image_s.at<cv::Vec3b>(160,160)[1],image_s.at<cv::Vec3b>(160,160)[2]);
@@ -126,7 +126,7 @@ void init_grid(void)
 {
     for(int y=0;y<map.info.height;y++){
         for(int x=0;x<map.info.width;x++){
-            grid[y][x] = 0;
+            grid[y][x] = -1;
         }
     }
 }
@@ -148,7 +148,7 @@ void calc_object(void)
     
     for(int y=pixel_num_y/2;y<pixel_num_y;y++){
         for(int x=0;x<pixel_num_x;x++){
-            if(!std::isnan(pixel[y][x].depth) && pixel[y][x].depth <= 30.0){
+            if(!std::isnan(pixel[y][x].depth) && pixel[y][x].depth <= 15.0){
                 int ob_x = (pixel[y][x].depth*cos(pixel[y][x].rad_y)*sin(pixel[y][x].rad_x) / map.info.resolution);
                 int ob_y = (pixel[y][x].depth*cos(pixel[y][x].rad_y)*cos(pixel[y][x].rad_x) / map.info.resolution);
                 if(ob_y<=map.info.width/2.0){
@@ -156,8 +156,12 @@ void calc_object(void)
                         if(ob_x<=map.info.width/2.0){
                             if(!pixel[y][x].seg_ok){
                                 grid[(int)map.info.height/2 - ob_y][(int)map.info.width/2 + ob_x] = 100;
-                            }else{
+                                grid[(int)map.info.height/2 - ob_y+1][(int)map.info.width/2 + ob_x] = 100;
+                                grid[(int)map.info.height/2 - ob_y+2][(int)map.info.width/2 + ob_x] = 100;
+                            }else {
                                 grid[(int)map.info.height/2 - ob_y][(int)map.info.width/2 + ob_x] = 0;
+                                grid[(int)map.info.height/2 - ob_y+1][(int)map.info.width/2 + ob_x] = 0;
+                                grid[(int)map.info.height/2 - ob_y+2][(int)map.info.width/2 + ob_x] = 0;
                             }
                         }
                     }
