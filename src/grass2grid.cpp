@@ -2,6 +2,11 @@
 #include <limits>
 #include <sensor_msgs/Image.h>
 #include <nav_msgs/OccupancyGrid.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <pcl_ros/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/filters/extract_indices.h>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
@@ -10,6 +15,7 @@
 sensor_msgs::Image seg_img;
 sensor_msgs::Image depth_img;
 nav_msgs::OccupancyGrid map;
+pcl::PointCloud<pcl::PointXYZ> p;
 
 const int pixel_num_x = 513;
 const int pixel_num_y = 288;
@@ -64,13 +70,13 @@ void seg_callback(const sensor_msgs::ImageConstPtr& msg)
         }
     }
 
+
     seg_flag = true;
     cv::waitKey(1);
-    /*
-    [B,G,R]=[0,0,128],[0,0,0]
-    */
-
+    //[B,G,R]=[0,0,128],[0,0,0]
 }
+
+
 
 bool im_d_s = false;
 void depth_callback(const sensor_msgs::ImageConstPtr& msg)
@@ -151,6 +157,7 @@ void calc_object(void)
             if(!std::isnan(pixel[y][x].depth) && pixel[y][x].depth <= 15.0){
                 int ob_x = (pixel[y][x].depth*cos(pixel[y][x].rad_y)*sin(pixel[y][x].rad_x) / map.info.resolution);
                 int ob_y = (pixel[y][x].depth*cos(pixel[y][x].rad_y)*cos(pixel[y][x].rad_x) / map.info.resolution);
+
                 if(ob_y<=map.info.width/2.0){
                     if(map.info.width/2.0>=-ob_x){
                         if(ob_x<=map.info.width/2.0){
@@ -158,10 +165,14 @@ void calc_object(void)
                                 grid[(int)map.info.height/2 - ob_y][(int)map.info.width/2 + ob_x] = 100;
                                 grid[(int)map.info.height/2 - ob_y+1][(int)map.info.width/2 + ob_x] = 100;
                                 grid[(int)map.info.height/2 - ob_y+2][(int)map.info.width/2 + ob_x] = 100;
+                                
+                                pcl::PointXYZ pt(ob_y,-ob_x,0);
+                                p.push_back(pt);
                             }else {
                                 grid[(int)map.info.height/2 - ob_y][(int)map.info.width/2 + ob_x] = 0;
                                 grid[(int)map.info.height/2 - ob_y+1][(int)map.info.width/2 + ob_x] = 0;
                                 grid[(int)map.info.height/2 - ob_y+2][(int)map.info.width/2 + ob_x] = 0;
+                                
                             }
                         }
                     }
@@ -169,6 +180,16 @@ void calc_object(void)
             }
         }
     }
+}
+
+void pubPoints(ros::Publisher& pub, pcl::PointCloud<pcl::PointXYZ>& pcl_in)
+{
+    sensor_msgs::PointCloud2 ros_out;
+    pcl::toROSMsg(pcl_in, ros_out);
+    ros_out.header.frame_id = "velodyne";
+    ros_out.header.stamp = ros::Time::now();
+    pub.publish(ros_out);
+    pcl_in.points.clear();
 }
 
 int main(int argc, char** argv)
@@ -182,6 +203,7 @@ int main(int argc, char** argv)
     image_transport::Subscriber depth_sub = it.subscribe("/camera/depth/resized_image", 100, depth_callback);
 
     ros::Publisher map_pub = nh.advertise<nav_msgs::OccupancyGrid>("map", 100, true);
+    ros::Publisher pc_pub = nh.advertise<sensor_msgs::PointCloud2>("point", 100, true);
 
     map.header.frame_id = "zed_depth_camera";
     map.info.resolution = 0.050000;
@@ -201,7 +223,6 @@ int main(int argc, char** argv)
     store_angle(102.5, 70.0);
 
     while(ros::ok()){
-
         if(seg_flag){
             init_grid();
 
@@ -209,6 +230,11 @@ int main(int argc, char** argv)
             seg_flag = false;
 
             store_mapdata();
+            
+            
+            pubPoints(pc_pub, p); 
+            
+            
             map_pub.publish(map);
         }
         ros::spinOnce();
