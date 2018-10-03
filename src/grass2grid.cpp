@@ -16,6 +16,7 @@ sensor_msgs::Image seg_img;
 sensor_msgs::Image depth_img;
 nav_msgs::OccupancyGrid map;
 pcl::PointCloud<pcl::PointXYZ> p;
+pcl::PointCloud<pcl::PointXYZ>::Ptr p_ (new pcl::PointCloud<pcl::PointXYZ>);
 
 const int pixel_num_x = 513;
 const int pixel_num_y = 288;
@@ -166,8 +167,8 @@ void calc_object(void)
                                 grid[(int)map.info.height/2 - ob_y+1][(int)map.info.width/2 + ob_x] = 100;
                                 grid[(int)map.info.height/2 - ob_y+2][(int)map.info.width/2 + ob_x] = 100;
                                 
-                                pcl::PointXYZ pt(ob_y,-ob_x,0);
-                                p.push_back(pt);
+                                pcl::PointXYZ pt(ob_y*map.info.resolution,-ob_x*map.info.resolution,0);
+                                p_->points.push_back(pt);
                             }else {
                                 grid[(int)map.info.height/2 - ob_y][(int)map.info.width/2 + ob_x] = 0;
                                 grid[(int)map.info.height/2 - ob_y+1][(int)map.info.width/2 + ob_x] = 0;
@@ -232,7 +233,7 @@ int main(int argc, char** argv)
             store_mapdata();
             
             
-            pubPoints(pc_pub, p); 
+            pubPoints(pc_pub, *p_); 
             
             
             map_pub.publish(map);
