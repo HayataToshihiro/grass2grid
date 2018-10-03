@@ -16,7 +16,8 @@ sensor_msgs::Image seg_img;
 sensor_msgs::Image depth_img;
 nav_msgs::OccupancyGrid map;
 pcl::PointCloud<pcl::PointXYZ> p;
-pcl::PointCloud<pcl::PointXYZ>::Ptr p_ (new pcl::PointCloud<pcl::PointXYZ>);
+pcl::PointCloud<pcl::PointXYZ>::Ptr p_g (new pcl::PointCloud<pcl::PointXYZ>);
+pcl::PointCloud<pcl::PointXYZ>::Ptr p_r (new pcl::PointCloud<pcl::PointXYZ>);
 
 const int pixel_num_x = 513;
 const int pixel_num_y = 288;
@@ -26,7 +27,8 @@ int grid[400][400] = {-1};
 
 struct Pixel{
     int seg[3];
-    bool seg_ok;
+    //bool seg_ok;
+    char seg_g_or_r;
     float depth;
     float rad_x;
     float rad_y;
@@ -66,8 +68,12 @@ void seg_callback(const sensor_msgs::ImageConstPtr& msg)
         for(int x=0;x<pixel_num_x;x++){
             //if( (pixel[y][x].seg[0]==0) && (pixel[y][x].seg[1]==0) && ((pixel[y][x].seg[2]==0) || pixel[y][x].seg[2]==128)) pixel[y][x].seg_ok=true;
             //else pixel[y][x].seg_ok=false;
-            if( (pixel[y][x].seg[0]==0) && (pixel[y][x].seg[1]==0) && ((pixel[y][x].seg[2]==64) || pixel[y][x].seg[2]==192)) pixel[y][x].seg_ok=false;
-            else pixel[y][x].seg_ok=true;
+            //if( (pixel[y][x].seg[0]==0) && (pixel[y][x].seg[1]==0) && ((pixel[y][x].seg[2]==64) || pixel[y][x].seg[2]==192)){ pixel[y][x].seg_ok=false;
+            //else pixel[y][x].seg_ok=true;
+            
+            if( (pixel[y][x].seg[0]==0) && (pixel[y][x].seg[1]==0) && ((pixel[y][x].seg[2]==64) || pixel[y][x].seg[2]==192))pixel[y][x].seg_g_or_r = 'g';
+            else if( (pixel[y][x].seg[0]==0) && (pixel[y][x].seg[1]==0) && ((pixel[y][x].seg[2]==0) || pixel[y][x].seg[2]==128))pixel[y][x].seg_g_or_r = 'r';
+            
         }
     }
 
@@ -162,18 +168,32 @@ void calc_object(void)
                 if(ob_y<=map.info.width/2.0){
                     if(map.info.width/2.0>=-ob_x){
                         if(ob_x<=map.info.width/2.0){
-                            if(!pixel[y][x].seg_ok){
+                            //if(!pixel[y][x].seg_ok){
+                            //    grid[(int)map.info.height/2 - ob_y][(int)map.info.width/2 + ob_x] = 100;
+                            //    grid[(int)map.info.height/2 - ob_y+1][(int)map.info.width/2 + ob_x] = 100;
+                            //    grid[(int)map.info.height/2 - ob_y+2][(int)map.info.width/2 + ob_x] = 100;
+                            //    
+                            //    pcl::PointXYZ pt(ob_y*map.info.resolution,-ob_x*map.info.resolution,0);
+                            //    p_g->points.push_back(pt);
+                            //}else {
+                            //    grid[(int)map.info.height/2 - ob_y][(int)map.info.width/2 + ob_x] = 0;
+                            //    grid[(int)map.info.height/2 - ob_y+1][(int)map.info.width/2 + ob_x] = 0;
+                            //    grid[(int)map.info.height/2 - ob_y+2][(int)map.info.width/2 + ob_x] = 0;
+                            //}
+                            if(pixel[y][x].seg_g_or_r == 'g'){
                                 grid[(int)map.info.height/2 - ob_y][(int)map.info.width/2 + ob_x] = 100;
                                 grid[(int)map.info.height/2 - ob_y+1][(int)map.info.width/2 + ob_x] = 100;
                                 grid[(int)map.info.height/2 - ob_y+2][(int)map.info.width/2 + ob_x] = 100;
                                 
                                 pcl::PointXYZ pt(ob_y*map.info.resolution,-ob_x*map.info.resolution,0);
-                                p_->points.push_back(pt);
-                            }else {
+                                p_g->points.push_back(pt);
+                            }else if(pixel[y][x].seg_g_or_r == 'r'){
                                 grid[(int)map.info.height/2 - ob_y][(int)map.info.width/2 + ob_x] = 0;
                                 grid[(int)map.info.height/2 - ob_y+1][(int)map.info.width/2 + ob_x] = 0;
                                 grid[(int)map.info.height/2 - ob_y+2][(int)map.info.width/2 + ob_x] = 0;
                                 
+                                pcl::PointXYZ pt(ob_y*map.info.resolution,-ob_x*map.info.resolution,0);
+                                p_r->points.push_back(pt);
                             }
                         }
                     }
@@ -187,7 +207,7 @@ void pubPoints(ros::Publisher& pub, pcl::PointCloud<pcl::PointXYZ>& pcl_in)
 {
     sensor_msgs::PointCloud2 ros_out;
     pcl::toROSMsg(pcl_in, ros_out);
-    ros_out.header.frame_id = "velodyne";
+    ros_out.header.frame_id = "/zed";
     ros_out.header.stamp = ros::Time::now();
     pub.publish(ros_out);
     pcl_in.points.clear();
@@ -204,7 +224,8 @@ int main(int argc, char** argv)
     image_transport::Subscriber depth_sub = it.subscribe("/camera/depth/resized_image", 100, depth_callback);
 
     ros::Publisher map_pub = nh.advertise<nav_msgs::OccupancyGrid>("map", 100, true);
-    ros::Publisher pc_pub = nh.advertise<sensor_msgs::PointCloud2>("point", 100, true);
+    ros::Publisher pc_g_pub = nh.advertise<sensor_msgs::PointCloud2>("/zed_grasspoints", 100, true);
+    ros::Publisher pc_r_pub = nh.advertise<sensor_msgs::PointCloud2>("/zed_roadpoints", 100, true);
 
     map.header.frame_id = "zed_depth_camera";
     map.info.resolution = 0.050000;
@@ -221,7 +242,8 @@ int main(int argc, char** argv)
 
     ros::Rate loop_rate(10);
 
-    store_angle(102.5, 70.0);
+    // store_angle(102.5, 70.0);
+    store_angle(120, 70.0);
 
     while(ros::ok()){
         if(seg_flag){
@@ -233,7 +255,8 @@ int main(int argc, char** argv)
             store_mapdata();
             
             
-            pubPoints(pc_pub, *p_); 
+            pubPoints(pc_g_pub, *p_g); 
+            pubPoints(pc_r_pub, *p_r); 
             
             
             map_pub.publish(map);
