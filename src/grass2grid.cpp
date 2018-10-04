@@ -123,12 +123,13 @@ void store_angle(float angle_x,float angle_y)
 {
     float dx = angle_x/pixel_num_x;
     float dy = angle_y/pixel_num_y;
+	float modify_angle_y = 10;
     float init_x = angle_x/2;
     float init_y = angle_y/2;
     for(int x=0;x<pixel_num_x;x++){
         for(int y=0;y<pixel_num_y;y++){
             pixel[y][x].rad_x = deg2rad(dx*x - init_x);
-            pixel[y][x].rad_y = deg2rad(dy*y - init_y);
+            pixel[y][x].rad_y = deg2rad(dy*y - init_y - modify_angle_y);
         }
     }
     //printf("rad[0][0] = (%.2f, %.2f)\n",pixel[0][0].rad_x,pixel[0][0].rad_y);
@@ -164,6 +165,7 @@ void calc_object(void)
             if(!std::isnan(pixel[y][x].depth) && pixel[y][x].depth <= 15.0){
                 int ob_x = (pixel[y][x].depth*cos(pixel[y][x].rad_y)*sin(pixel[y][x].rad_x) / map.info.resolution);
                 int ob_y = (pixel[y][x].depth*cos(pixel[y][x].rad_y)*cos(pixel[y][x].rad_x) / map.info.resolution);
+                float ob_z = -(pixel[y][x].depth*sin(pixel[y][x].rad_y) );
 
                 if(ob_y<=map.info.width/2.0){
                     if(map.info.width/2.0>=-ob_x){
@@ -185,14 +187,14 @@ void calc_object(void)
                                 grid[(int)map.info.height/2 - ob_y+1][(int)map.info.width/2 + ob_x] = 100;
                                 grid[(int)map.info.height/2 - ob_y+2][(int)map.info.width/2 + ob_x] = 100;
                                 
-                                pcl::PointXYZ pt(ob_y*map.info.resolution,-ob_x*map.info.resolution,0);
+                                pcl::PointXYZ pt(ob_y*map.info.resolution,-ob_x*map.info.resolution,ob_z);
                                 p_g->points.push_back(pt);
                             }else if(pixel[y][x].seg_g_or_r == 'r'){
                                 grid[(int)map.info.height/2 - ob_y][(int)map.info.width/2 + ob_x] = 0;
                                 grid[(int)map.info.height/2 - ob_y+1][(int)map.info.width/2 + ob_x] = 0;
                                 grid[(int)map.info.height/2 - ob_y+2][(int)map.info.width/2 + ob_x] = 0;
                                 
-                                pcl::PointXYZ pt(ob_y*map.info.resolution,-ob_x*map.info.resolution,0);
+                                pcl::PointXYZ pt(ob_y*map.info.resolution,-ob_x*map.info.resolution,ob_z);
                                 p_r->points.push_back(pt);
                             }
                         }
